@@ -1,0 +1,117 @@
+const express = require("express");
+const cors = require("cors");
+const fetch = require("node-fetch"); // Ensure you have this package installed
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+const app = express();
+
+// Middleware for JSON parsing and CORS
+app.use(cors());
+app.use(express.json());
+
+// JDoodle API Execution Endpoint
+app.post("/api/execute-code", async (req, res) => {
+  const { code } = req.body;
+
+  if (!code || typeof code !== "string") {
+    return res
+      .status(400)
+      .json({ success: false, error: "Invalid 'code' input. Must be a string." });
+  }
+
+  const jdoodleConfig = {
+    clientId: "your-client-id", // Replace with your JDoodle client ID
+    clientSecret: "your-client-secret", // Replace with your JDoodle client secret
+    script: code,
+    language: "python3",
+    compileOnly: false,
+  };
+
+  try {
+    const apiResponse = await fetch("https://api.jdoodle.com/v1/execute", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(jdoodleConfig),
+    });
+
+    if (!apiResponse.ok) {
+      const errorMessage = await apiResponse.text();
+      throw new Error(`JDoodle API Error: ${errorMessage}`);
+    }
+
+    const result = await apiResponse.json();
+    if (result.output) {
+      res.status(200).json({ success: true, output: result.output });
+    } else {
+      res
+        .status(200)
+        .json({ success: false, error: result.error || result.exception });
+    }
+  } catch (error) {
+    console.error("Error executing code:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// AI Mock Question Generator
+const aiGenerator = new GoogleGenerativeAI("your-google-api-key"); // Replace with your API key
+
+// Endpoint to Generate Coding Questions
+app.post("/api/generate-questions", async (req, res) => {
+  const { count, level, topic } = req.body;
+
+  const questionPrompt = `
+    Generate ${count} coding problems in JSON format. Each problem includes:
+    - Unique ID
+    - Title and description
+    - Difficulty: ${level}
+    - Category: ${topic}
+    - Test cases and expected outputs
+    
+    Example:
+    [
+      {
+        id: 1,
+        title: "Add Two Numbers",
+        description: "Add two integers and return the result.",
+        difficulty: "Easy",
+        category: "Math",
+        testCases: ["2, 3"],
+        expectedOutputs: ["5"]
+      }
+    ]
+  `;
+
+  try {
+    const questionResponse = await aiGenerator.generateContent(questionPrompt);
+    res.json({ questions: questionResponse.response.text() });
+  } catch (error) {
+    console.error("Error generating questions:", error);
+    res.status(500).json({ error: "Question generation failed." });
+  }
+});
+
+// Code Analysis Endpoint
+app.post("/api/analyze-code", async (req, res) => {
+  const { solution, question } = req.body;
+
+  const analysisPrompt = `
+    Review the solution: ${solution}, submitted for question: ${question}. 
+    Provide:
+    - Time complexity with optimization hints
+    - Coding style feedback
+    - A score out of 100 for quality, efficiency, and accuracy.
+  `;
+
+  try {
+    const analysisResponse = await aiGenerator.generateContent(analysisPrompt);
+    res.json({ feedback: analysisResponse.response.text() });
+  } catch (error) {
+    console.error("Error analyzing code:", error);
+    res.status(500).json({ error: "Code analysis failed." });
+  }
+});
+
+// Start the server
+app.listen(3000, () => {
+  console.log("Server is running on port 3000");
+});
