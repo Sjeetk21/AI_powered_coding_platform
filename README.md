@@ -65,7 +65,3 @@ This project aims to build an AI-powered coding challenge platform where users c
 ## Contribution
 
 Contributions are welcome! If you have ideas to improve this platform or find bugs, please create an issue or submit a pull request.
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
